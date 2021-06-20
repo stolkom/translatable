@@ -6,14 +6,10 @@
 composer require stolkom/translatable
 ```
 Если планируется использовать общую таблицу для хранения переводов, необходимо её создать.
-Для этого необходимо выполнить следующую команду:
+Для этого необходимо выполнить следующие команды:
 
 ```
 php artisan vendor:publish --provider="Stolkom\Translatable\TranslatableServiceProvider"
-```
-Для создания таблицы нужно выполнить:
-
-```
 php artisan migrate
 ```
 
