@@ -11,6 +11,11 @@ composer require stolkom/translatable
 ```
 php artisan vendor:publish --provider="Stolkom\Translatable\TranslatableServiceProvider"
 ```
+Для создания таблицы нужно выполнить:
+
+```
+php artisan migrate
+```
 
 ## Использование
 
