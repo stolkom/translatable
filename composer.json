@@ -1,0 +1,27 @@
+{
+    "name": "stolkom/translatable",
+    "description": "Laravel package for model translations",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Pi",
+            "email": "develop@s-tolkom.ru"
+        }
+    ],
+    "require": {
+        "php": "^7.2",
+        "laravel/framework": "^5.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Stolkom\\Translatable\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Stolkom\\Translatable\\TranslatableServiceProvider"
+            ]
+        }
+    },
+}
