@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 trait Translatable
 {
-	protected static $autoTranslations = true;
+	protected $autoTranslations = true;
 
 	/**
 	 * Trait boot method
@@ -54,7 +54,7 @@ trait Translatable
 	{
 		$attributes = parent::toArray();
 
-		if (! self::$autoTranslations) return $attributes;
+		if (! $this->autoTranslations) return $attributes;
 
 		foreach ($this->translatableAttributes as $field) {
 			$attributes[$field] = $this->getTranslation($field);
@@ -141,7 +141,7 @@ trait Translatable
 	 */
 	public function getAttribute($key)
 	{
-		if (self::$autoTranslations && $this->isTranslatableAttribute($key)) {
+		if ($this->autoTranslations && $this->isTranslatableAttribute($key)) {
 			return $this->getTranslation($key);
 		}
 
@@ -165,9 +165,9 @@ trait Translatable
 	 *
 	 * @return void
 	 */
-	public static function enableAutoTranslations()
+	public function enableAutoTranslations()
 	{
-		self::$autoTranslations = true;
+		$this->autoTranslations = true;
 	}
 
 	/**
@@ -175,8 +175,8 @@ trait Translatable
 	 *
 	 * @return void
 	 */
-	public static function disableAutoTranslations()
+	public function disableAutoTranslations()
 	{
-		self::$autoTranslations = false;
+		$this->autoTranslations = false;
 	}
 }
