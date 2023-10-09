@@ -2,181 +2,204 @@
 
 namespace Stolkom\Translatable;
 
-use Stolkom\Translatable\Translation;
 use Illuminate\Database\Eloquent\Model;
 
 trait Translatable
 {
-	protected $autoTranslations = true;
+    /**
+     * Enable auto translations.
+     *
+     * @var bool
+     */
+    protected $autoTranslations = true;
 
-	/**
-	 * Trait boot method
-	 *
-	 * @return void
-	 */
-	public static function bootTranslatable()
-	{
-		static::deleting(function (Model $model) {
-			$model->translations()->delete();
-		});
-	}
+    /**
+     * Default translations table.
+     *
+     * @var string
+     */
+    protected $defaultTranslationsTable = 'translatable';
 
-	/**
-	 * Get translation model name
-	 *
-	 * @return string
-	 */
-	protected static function getTranslationModelName()
-	{
-		return Translation::class;
-	}
+    /**
+     * Array of translatable attributes.
+     *
+     * @var array
+     */
+    public $translatableAttributes = [];
 
-	/**
-	 * Get all translations
-	 *
-	 * @return \Illuminate\Database\Eloquent\Relations\hasMany | \Illuminate\Database\Eloquent\Relations\morphMany
-	 */
-	public function translations()
-	{
-		if (isset($this->translationsTable)) {
-			return $this->hasMany($this->getTranslationModelName());
-		}
-		return $this->morphMany(Translation::class, 'translatable');
-	}
+    /**
+     * Trait boot method.
+     *
+     * @return void
+     */
+    public static function bootTranslatable()
+    {
+        static::deleting(function (Model $model) {
+            $model->translations()->delete();
+        });
+    }
 
-	/**
-	 * Convert model instance to array
-	 * Fields translation before array transformation
-	 *
-	 * @return array
-	 */
-	public function toArray()
-	{
-		$attributes = parent::toArray();
+    /**
+     * Get translation model name.
+     *
+     * @return string
+     */
+    protected static function getTranslationModelName()
+    {
+        return Translation::class;
+    }
 
-		if (! $this->autoTranslations) return $attributes;
+    /**
+     * Get all translations.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany | \Illuminate\Database\Eloquent\Relations\MorphMany
+     */
+    public function translations()
+    {
+        return isset($this->translationsTable)
+            ? $this->hasMany($this->getTranslationModelName())
+            : $this->morphMany(Translation::class, $this->defaultTranslationsTable);
+    }
 
-		foreach ($this->translatableAttributes as $field) {
-			$attributes[$field] = $this->getTranslation($field);
-		}
+    /**
+     * Convert model instance to array
+     * Translate fields before transform array
+     *
+     * @return array
+     */
+    public function toArray(): array
+    {
+        $attributes = parent::toArray();
 
-		return $attributes;
-	}
+        if (!$this->autoTranslations) {
+            return $attributes;
+        }
 
-	/**
-	 * Get the field translation
-	 *
-	 * @param  string $field - field name
-	 * @param  string $locale - locale code
-	 * @return string
-	 */
-	public function getTranslation(string $field, string $locale = null)
-	{
-		return $this->getTranslationValue($field, $locale) ?? parent::getAttribute($field);
-	}
+        foreach ($this->translatableAttributes as $field) {
+            $attributes[$field] = $this->getTranslation($field);
+        }
 
-	/**
-	 * Get the field translation value if exists
-	 *
-	 * @param  string $field - field name
-	 * @param  string $locale - locale code
-	 * @return string | null
-	 */
-	public function getTranslationValue(string $field, string $locale = null)
-	{
-		$locale = $locale ?? app()->getLocale();
+        return $attributes;
+    }
 
-		$translation = $this->translations
-			->where('field', $field)
-			->where('locale', $locale)
-			->first();
+    /**
+     * Get the field translation.
+     *
+     * @param  string $field - field name
+     * @param  string $locale - locale code
+     * @return mixed
+     */
+    public function getTranslation(string $field, string $locale = null)
+    {
+        return $this->getTranslationValue($field, $locale)
+            ?? parent::getAttribute($field);
+    }
 
-		return $translation ? $translation->text : null;
-	}
+    /**
+     * Get the field translation value if exists
+     *
+     * @param  string $field - field name
+     * @param  string $locale - locale code
+     * @return string | null
+     */
+    public function getTranslationValue(string $field, ?string $locale = null): ?string
+    {
+        $locale = $locale ?? app()->getLocale();
 
-	/**
-	 * Save all translations
-	 *
-	 * @param  array $requestTranslations - translations array from request
-	 * @return void
-	 */
-	public function saveTranslations(array $requestTranslations)
-	{
-		$modelName = $this->getTranslationModelName();
-		$translations = [];
-		foreach ($requestTranslations as $field => $fieldData) {
-			if (! $this->isTranslatableAttribute($field)) continue;
+        $translation = $this->translations
+            ->where('field', $field)
+            ->where('locale', $locale)
+            ->first();
 
-			foreach ($fieldData as $locale => $value) {
-				$exists = $this->translations
-					->where('field', $field)
-					->where('locale', $locale)
-					->first();
+        return $translation ? $translation->text : null;
+    }
 
-				// Update if exists
-				if ($exists) {
-					$exists->text = $value;
-					$exists->save();
-					continue;
-				}
+    /**
+     * Save all translations.
+     *
+     * @param  array $requestTranslations - array of translations from request
+     * @return void
+     */
+    public function saveTranslations(array $requestTranslations): void
+    {
+        $modelName = $this->getTranslationModelName();
+        $translations = [];
 
-				// Create new
-				$translations[] = new $modelName([
-					'locale' => $locale,
-					'field'  => $field,
-					'text'   => $value
-				]);
-			}
-		}
+        foreach ($requestTranslations as $field => $fieldData) {
+            if (!$this->isTranslatableAttribute($field)) {
+                continue;
+            }
 
-		// Save all new
-		$this->translations()->saveMany($translations);
-	}
+            foreach ($fieldData as $locale => $value) {
+                $exists = $this->translations
+                    ->where('field', $field)
+                    ->where('locale', $locale)
+                    ->first();
 
-	/**
-	 * Get attribute translation
-	 *
-	 * @param  string $key
-	 * @return mixed
-	 */
-	public function getAttribute($key)
-	{
-		if ($this->autoTranslations && $this->isTranslatableAttribute($key)) {
-			return $this->getTranslation($key);
-		}
+                // Update if exists
+                if ($exists) {
+                    $exists->text = $value;
+                    $exists->save();
+                    continue;
+                }
 
-		return parent::getAttribute($key);
-	}
+                // Create new
+                $translations[] = new $modelName([
+                    'locale' => $locale,
+                    'field'  => $field,
+                    'text'   => $value
+                ]);
+            }
+        }
 
-	/**
-	 * Check if the attribute is translatable
-	 *
-	 * @param  string $key
-	 * @return boolean
-	 */
-	public function isTranslatableAttribute(string $key)
-	{
-		return !empty($this->translatableAttributes)
-			&& in_array($key, $this->translatableAttributes);
-	}
+        // Save all new
+        $this->translations()->saveMany($translations);
+    }
 
-	/**
-	 * Enable the auto translations
-	 *
-	 * @return void
-	 */
-	public function enableAutoTranslations()
-	{
-		$this->autoTranslations = true;
-	}
+    /**
+     * Get the attribute translation.
+     *
+     * @param  string $key
+     * @return mixed
+     */
+    public function getAttribute($key)
+    {
+        if ($this->autoTranslations && $this->isTranslatableAttribute($key)) {
+            return $this->getTranslation($key);
+        }
 
-	/**
-	 * Disable the auto translations
-	 *
-	 * @return void
-	 */
-	public function disableAutoTranslations()
-	{
-		$this->autoTranslations = false;
-	}
+        return parent::getAttribute($key);
+    }
+
+    /**
+     * Check if the attribute is translatable.
+     *
+     * @param  string $key
+     * @return bool
+     */
+    public function isTranslatableAttribute(string $key): bool
+    {
+        return !empty($this->translatableAttributes)
+            && in_array($key, $this->translatableAttributes);
+    }
+
+    /**
+     * Enable auto translations.
+     *
+     * @return void
+     */
+    public function enableAutoTranslations(): void
+    {
+        $this->autoTranslations = true;
+    }
+
+    /**
+     * Disable auto translations.
+     *
+     * @return void
+     */
+    public function disableAutoTranslations(): void
+    {
+        $this->autoTranslations = false;
+    }
 }
